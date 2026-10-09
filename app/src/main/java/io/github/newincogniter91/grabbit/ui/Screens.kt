@@ -3,6 +3,8 @@
 package io.github.newincogniter91.grabbit.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -198,7 +201,7 @@ fun MainScreen(state: UiState, vm: MainViewModel, onSettings: () -> Unit) {
 
         Spacer(Modifier.height(32.dp))
         Text(
-            text = "Files are saved to Downloads/Grabbit.",
+            text = "Files are saved to ${state.saveFolderLabel}.",
             color = Muted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -236,6 +239,10 @@ fun FormatPicker(selected: OutFormat, onPick: (OutFormat) -> Unit, enabled: Bool
 
 @Composable
 fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) vm.setSaveFolder(uri)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -250,6 +257,40 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         }
 
         Spacer(Modifier.height(24.dp))
+        Text("Appearance", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.darkTheme,
+                onClick = { vm.setDarkTheme(true) },
+                label = { Text("Night") },
+            )
+            FilterChip(
+                selected = !state.darkTheme,
+                onClick = { vm.setDarkTheme(false) },
+                label = { Text("Day") },
+            )
+        }
+
+        Spacer(Modifier.height(32.dp))
+        Text("Save location", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(state.saveFolderLabel, color = Muted)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                onClick = { folderPicker.launch(null) },
+                colors = ButtonDefaults.buttonColors(containerColor = Red),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text("Choose folder")
+            }
+            if (state.customFolder) {
+                TextButton(onClick = vm::resetSaveFolder) { Text("Use default") }
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
         Text("Download engine", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text("yt-dlp version: ${state.engineVersion.ifBlank { "unknown" }}", color = Muted)

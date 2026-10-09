@@ -10,6 +10,8 @@ It uses [youtubedl-android](https://github.com/yausername/youtubedl-android), wh
 - Choose the output format at download time
 - Works as a share target: share a link to Grabbit from any app
 - Built-in yt-dlp updater (Settings → Update yt-dlp), so it keeps working when sites change
+- Night / Day theme, switchable in Settings
+- Choose where files are saved (Settings → Save location); default is `Downloads/Grabbit`
 - Requires Android 10 (API 29) or newer
 
 ## Disclaimer

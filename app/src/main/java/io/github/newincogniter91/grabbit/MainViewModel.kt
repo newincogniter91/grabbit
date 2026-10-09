@@ -2,7 +2,10 @@ package io.github.newincogniter91.grabbit
 
 import android.app.Application
 import android.content.ContentValues
+import android.content.Intent
+import android.net.Uri
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.lifecycle.AndroidViewModel
@@ -26,6 +29,8 @@ enum class OutFormat(val label: String) {
     OPUS("OPUS"),
 }
 
+const val DEFAULT_FOLDER_LABEL = "Downloads/Grabbit"
+
 data class UiState(
     val url: String = "",
     val format: OutFormat = OutFormat.MP4,
@@ -39,13 +44,21 @@ data class UiState(
     val updating: Boolean = false,
     val updateMessage: String = "",
     val disclaimerAccepted: Boolean = false,
+    val darkTheme: Boolean = true,
+    val saveFolderLabel: String = DEFAULT_FOLDER_LABEL,
+    val customFolder: Boolean = false,
 )
 
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("grabbit", Application.MODE_PRIVATE)
     private val _state = MutableStateFlow(
-        UiState(disclaimerAccepted = prefs.getBoolean(KEY_DISCLAIMER, false))
+        UiState(
+            disclaimerAccepted = prefs.getBoolean(KEY_DISCLAIMER, false),
+            darkTheme = prefs.getBoolean(KEY_DARK, true),
+            saveFolderLabel = folderLabel(prefs.getString(KEY_FOLDER, null)),
+            customFolder = prefs.getString(KEY_FOLDER, null) != null,
+        )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
@@ -72,6 +85,34 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun acceptDisclaimer() {
         prefs.edit().putBoolean(KEY_DISCLAIMER, true).apply()
         _state.update { it.copy(disclaimerAccepted = true) }
+    }
+
+    fun setDarkTheme(dark: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK, dark).apply()
+        _state.update { it.copy(darkTheme = dark) }
+    }
+
+    fun setSaveFolder(uri: Uri) {
+        runCatching {
+            app.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        prefs.edit().putString(KEY_FOLDER, uri.toString()).apply()
+        _state.update { it.copy(saveFolderLabel = folderLabel(uri.toString()), customFolder = true) }
+    }
+
+    fun resetSaveFolder() {
+        prefs.edit().remove(KEY_FOLDER).apply()
+        _state.update { it.copy(saveFolderLabel = DEFAULT_FOLDER_LABEL, customFolder = false) }
+    }
+
+    private fun folderLabel(uriString: String?): String {
+        if (uriString == null) return DEFAULT_FOLDER_LABEL
+        val id = runCatching { DocumentsContract.getTreeDocumentId(Uri.parse(uriString)) }.getOrNull()
+            ?: return DEFAULT_FOLDER_LABEL
+        return id.substringAfter(':', "").ifEmpty { "Internal storage" }
     }
 
     fun handleSharedText(text: String) {
@@ -109,11 +150,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     f.isFile && SKIP_SUFFIXES.none { f.name.endsWith(it) }
                 }
                 if (files.isEmpty()) error("No file was produced.")
-                files.forEach { saveToDownloads(it) }
+                val usedFallback = files.map { saveFile(it) }.any { it }
+                val where = if (usedFallback) DEFAULT_FOLDER_LABEL else _state.value.saveFolderLabel
+                val note = if (usedFallback) "Chosen folder unavailable. " else ""
                 _state.update {
                     it.copy(
                         busy = false,
-                        status = "Saved to Downloads/Grabbit: ${files.first().name}",
+                        status = "${note}Saved to $where: ${files.first().name}",
                         isError = false,
                     )
                 }
@@ -187,6 +230,36 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         return request
     }
 
+    /** Returns true when the chosen folder failed and the default location was used instead. */
+    private fun saveFile(file: File): Boolean {
+        val folder = prefs.getString(KEY_FOLDER, null)?.let(Uri::parse)
+        if (folder != null) {
+            try {
+                saveToFolder(folder, file)
+                return false
+            } catch (e: Throwable) {
+                // fall back to the default location below
+            }
+        }
+        saveToDownloads(file)
+        return folder != null
+    }
+
+    private fun saveToFolder(treeUri: Uri, file: File) {
+        val resolver = app.contentResolver
+        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
+            ?: "application/octet-stream"
+        val parent = DocumentsContract.buildDocumentUriUsingTree(
+            treeUri,
+            DocumentsContract.getTreeDocumentId(treeUri),
+        )
+        val doc = DocumentsContract.createDocument(resolver, parent, mime, file.name)
+            ?: error("Could not create the file in the chosen folder.")
+        resolver.openOutputStream(doc)?.use { out ->
+            file.inputStream().use { it.copyTo(out) }
+        } ?: error("Could not write to the chosen folder.")
+    }
+
     private fun saveToDownloads(file: File) {
         val resolver = app.contentResolver
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
@@ -209,6 +282,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val KEY_DISCLAIMER = "disclaimer_accepted"
+        const val KEY_DARK = "dark_theme"
+        const val KEY_FOLDER = "save_folder_uri"
         const val PROCESS_ID = "grabbit-download"
         val SKIP_SUFFIXES = listOf(".part", ".ytdl", ".temp", ".tmp")
     }
