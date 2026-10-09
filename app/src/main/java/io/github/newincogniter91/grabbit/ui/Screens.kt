@@ -2,6 +2,8 @@
 
 package io.github.newincogniter91.grabbit.ui
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.newincogniter91.grabbit.MainViewModel
 import io.github.newincogniter91.grabbit.OutFormat
 import io.github.newincogniter91.grabbit.UiState
+import io.github.newincogniter91.grabbit.VideoQuality
 
 const val DISCLAIMER =
     "Grabbit is a general-purpose download front end for yt-dlp. Use it only for content you own, " +
@@ -77,6 +81,13 @@ fun GrabbitRoot(vm: MainViewModel, onExit: () -> Unit) {
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = showSettings) { showSettings = false }
+
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(state.disclaimerAccepted) {
+        if (state.disclaimerAccepted && Build.VERSION.SDK_INT >= 33) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(modifier = Modifier.safeDrawingPadding()) {
@@ -160,17 +171,21 @@ fun MainScreen(state: UiState, vm: MainViewModel, onSettings: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FormatPicker(state.format, onPick = vm::setFormat, enabled = !state.busy)
-                    Button(
-                        onClick = vm::download,
-                        enabled = state.ready && !state.busy && state.url.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Red),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                    ) {
-                        Text("Download", fontWeight = FontWeight.Bold)
+                    if (state.format.isVideo) {
+                        QualityPicker(state.quality, onPick = vm::setQuality, enabled = !state.busy)
                     }
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = vm::download,
+                    enabled = state.ready && !state.busy && state.url.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Red),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
+                    Text("Download", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -229,6 +244,34 @@ fun FormatPicker(selected: OutFormat, onPick: (OutFormat) -> Unit, enabled: Bool
                     text = { Text(format.label) },
                     onClick = {
                         onPick(format)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QualityPicker(selected: VideoQuality, onPick: (VideoQuality) -> Unit, enabled: Boolean) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Button(
+            onClick = { open = true },
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(containerColor = BlueBg, contentColor = Blue),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.height(52.dp),
+        ) {
+            Text(selected.label, fontWeight = FontWeight.Bold)
+            Text(" ▾")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            VideoQuality.entries.forEach { quality ->
+                DropdownMenuItem(
+                    text = { Text(quality.label) },
+                    onClick = {
+                        onPick(quality)
                         open = false
                     },
                 )

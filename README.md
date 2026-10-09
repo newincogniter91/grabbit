@@ -12,6 +12,9 @@ It uses [youtubedl-android](https://github.com/yausername/youtubedl-android), wh
 - Built-in yt-dlp updater (Settings → Update yt-dlp), so it keeps working when sites change
 - Night / Day theme, switchable in Settings
 - Choose where files are saved (Settings → Save location); default is `Downloads/Grabbit`
+- Video quality picker (Best, 1080p, 720p, 480p, 360p) for MP4 and WEBM
+- Downloads run in a foreground service, so they continue in the background, with a progress notification and a Cancel button
+- Separate APKs per architecture: `arm64-v8a` (almost all modern phones) and `armeabi-v7a` (old 32-bit devices)
 - Requires Android 10 (API 29) or newer
 
 ## Disclaimer

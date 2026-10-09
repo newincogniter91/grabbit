@@ -16,9 +16,15 @@ android {
         minSdk = 29
         targetSdk = 35
         versionCode = runNumber
-        versionName = "1.1.$runNumber"
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        versionName = "1.2.$runNumber"
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 

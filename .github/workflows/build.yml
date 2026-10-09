@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      signed: ${{ steps.signing.outputs.signed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +26,7 @@ jobs:
           gradle-version: "8.9"
 
       - name: Prepare signing key
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -33,8 +36,10 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/grabbit.jks"
             PASS="$KEYSTORE_PASSWORD"; ALIAS="$KEY_ALIAS"; KPASS="$KEY_PASSWORD"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No signing secrets found, generating a temporary key."
+            echo "No signing secrets found, generating a temporary key (no release will be published)."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
             PASS="grabbit-ci"; ALIAS="grabbit"; KPASS="grabbit-ci"
             keytool -genkeypair -v -keystore "$RUNNER_TEMP/grabbit.jks" -storepass "$PASS" \
               -keypass "$KPASS" -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
@@ -50,8 +55,11 @@ jobs:
       - name: Build release APK
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk "grabbit-1.1.${{ github.run_number }}.apk"
+      - name: Rename APKs
+        run: |
+          for abi in arm64-v8a armeabi-v7a; do
+            cp "app/build/outputs/apk/release/app-${abi}-release.apk" "grabbit-1.2.${{ github.run_number }}-${abi}.apk"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -60,7 +68,7 @@ jobs:
 
   release:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.signed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -71,8 +79,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.1.${{ github.run_number }}" grabbit-*.apk \
+          gh release create "v1.2.${{ github.run_number }}" grabbit-*.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "Grabbit 1.1.${{ github.run_number }}" \
+            --title "Grabbit 1.2.${{ github.run_number }}" \
+            --notes "Install the arm64-v8a APK on almost all modern phones. The armeabi-v7a APK is only for old 32-bit devices." \
             --generate-notes
