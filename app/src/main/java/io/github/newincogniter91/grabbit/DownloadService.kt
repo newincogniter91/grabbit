@@ -67,12 +67,20 @@ class DownloadService : Service() {
         val quality = runCatching { VideoQuality.valueOf(intent.getStringExtra(EXTRA_QUALITY).orEmpty()) }
             .getOrDefault(VideoQuality.BEST)
 
+        val extra = ExtraOptions(
+            embedCover = intent.getBooleanExtra(EXTRA_EMBED, false),
+            separateAv = intent.getBooleanExtra(EXTRA_SEPARATE, false),
+            trim = intent.getBooleanExtra(EXTRA_TRIM, false),
+            trimStart = intent.getStringExtra(EXTRA_TRIM_START).orEmpty(),
+            trimEnd = intent.getStringExtra(EXTRA_TRIM_END).orEmpty(),
+        )
+
         job = scope.launch {
             val wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "grabbit:download")
             wakeLock.acquire(60 * 60 * 1000L)
             try {
-                runDownload(url, format, quality)
+                runDownload(url, format, quality, extra)
             } finally {
                 if (wakeLock.isHeld) wakeLock.release()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -87,7 +95,7 @@ class DownloadService : Service() {
         super.onDestroy()
     }
 
-    private fun runDownload(url: String, format: OutFormat, quality: VideoQuality) {
+    private fun runDownload(url: String, format: OutFormat, quality: VideoQuality, extra: ExtraOptions) {
         cancelled = false
         val tmp = File(cacheDir, "dl").apply {
             deleteRecursively()
@@ -95,7 +103,7 @@ class DownloadService : Service() {
         }
         var lastPercent = -1
         try {
-            val request = Downloader.buildRequest(url, format, quality, tmp)
+            val request = Downloader.buildRequest(url, format, quality, tmp, extra)
             YoutubeDL.getInstance().execute(request, PROCESS_ID) { progress, _, _ ->
                 if (progress >= 0f) {
                     val percent = progress.toInt()
@@ -205,7 +213,12 @@ class DownloadService : Service() {
         private const val EXTRA_URL = "url"
         private const val EXTRA_FORMAT = "format"
         private const val EXTRA_QUALITY = "quality"
-        private val SKIP_SUFFIXES = listOf(".part", ".ytdl", ".temp", ".tmp")
+        private const val EXTRA_EMBED = "embed_cover"
+        private const val EXTRA_SEPARATE = "separate_av"
+        private const val EXTRA_TRIM = "trim"
+        private const val EXTRA_TRIM_START = "trim_start"
+        private const val EXTRA_TRIM_END = "trim_end"
+        private val SKIP_SUFFIXES = listOf(".part", ".ytdl", ".temp", ".tmp", ".jpg", ".png", ".webp")
 
         @Volatile
         private var cancelled = false
@@ -213,12 +226,23 @@ class DownloadService : Service() {
         private val _status = MutableStateFlow(DownloadStatus())
         val status: StateFlow<DownloadStatus> = _status.asStateFlow()
 
-        fun start(context: Context, url: String, format: OutFormat, quality: VideoQuality) {
+        fun start(
+            context: Context,
+            url: String,
+            format: OutFormat,
+            quality: VideoQuality,
+            extra: ExtraOptions = ExtraOptions(),
+        ) {
             _status.value = DownloadStatus(busy = true, status = "Starting…")
             val intent = Intent(context, DownloadService::class.java)
                 .putExtra(EXTRA_URL, url)
                 .putExtra(EXTRA_FORMAT, format.name)
                 .putExtra(EXTRA_QUALITY, quality.name)
+                .putExtra(EXTRA_EMBED, extra.embedCover)
+                .putExtra(EXTRA_SEPARATE, extra.separateAv)
+                .putExtra(EXTRA_TRIM, extra.trim)
+                .putExtra(EXTRA_TRIM_START, extra.trimStart)
+                .putExtra(EXTRA_TRIM_END, extra.trimEnd)
             try {
                 ContextCompat.startForegroundService(context, intent)
             } catch (e: Throwable) {

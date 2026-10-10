@@ -41,6 +41,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -175,6 +176,35 @@ fun MainScreen(state: UiState, vm: MainViewModel, onSettings: () -> Unit) {
                         QualityPicker(state.quality, onPick = vm::setQuality, enabled = !state.busy)
                     }
                 }
+                if (state.format != OutFormat.WEBM) {
+                    OptionSwitch("Embed cover art", state.embedCover, vm::setEmbedCover, !state.busy)
+                }
+                if (state.format.isVideo) {
+                    OptionSwitch("Save video and audio separately", state.separateAv, vm::setSeparateAv, !state.busy)
+                }
+                OptionSwitch("Download only a section", state.trim, vm::setTrim, !state.busy)
+                if (state.trim) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = state.trimStart,
+                            onValueChange = vm::setTrimStart,
+                            label = { Text("From") },
+                            placeholder = { Text("0:00") },
+                            singleLine = true,
+                            enabled = !state.busy,
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = state.trimEnd,
+                            onValueChange = vm::setTrimEnd,
+                            label = { Text("To") },
+                            placeholder = { Text("end") },
+                            singleLine = true,
+                            enabled = !state.busy,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = vm::download,
@@ -221,6 +251,14 @@ fun MainScreen(state: UiState, vm: MainViewModel, onSettings: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+fun OptionSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 

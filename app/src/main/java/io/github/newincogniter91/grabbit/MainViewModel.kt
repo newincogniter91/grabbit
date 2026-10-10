@@ -18,6 +18,11 @@ data class UiState(
     val url: String = "",
     val format: OutFormat = OutFormat.MP4,
     val quality: VideoQuality = VideoQuality.BEST,
+    val embedCover: Boolean = false,
+    val separateAv: Boolean = false,
+    val trim: Boolean = false,
+    val trimStart: String = "",
+    val trimEnd: String = "",
     val ready: Boolean = false,
     val initError: String? = null,
     val busy: Boolean = false,
@@ -74,6 +79,16 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun setQuality(value: VideoQuality) = _state.update { it.copy(quality = value) }
 
+    fun setEmbedCover(value: Boolean) = _state.update { it.copy(embedCover = value) }
+
+    fun setSeparateAv(value: Boolean) = _state.update { it.copy(separateAv = value) }
+
+    fun setTrim(value: Boolean) = _state.update { it.copy(trim = value) }
+
+    fun setTrimStart(value: String) = _state.update { it.copy(trimStart = value) }
+
+    fun setTrimEnd(value: String) = _state.update { it.copy(trimEnd = value) }
+
     fun acceptDisclaimer() {
         prefs.edit().putBoolean(KEY_DISCLAIMER, true).apply()
         _state.update { it.copy(disclaimerAccepted = true) }
@@ -114,7 +129,28 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val s = _state.value
         val url = s.url.trim()
         if (url.isEmpty() || s.busy || !s.ready) return
-        DownloadService.start(app, url, s.format, s.quality)
+        val from = s.trimStart.trim()
+        val to = s.trimEnd.trim()
+        if (s.trim) {
+            val start = if (from.isEmpty()) 0.0 else Downloader.parseTime(from)
+            val end = if (to.isEmpty()) null else Downloader.parseTime(to)
+            val invalid = (from.isEmpty() && to.isEmpty()) ||
+                start == null ||
+                (to.isNotEmpty() && end == null) ||
+                (end != null && end <= start)
+            if (invalid) {
+                _state.update { it.copy(status = "Invalid time range. Use m:ss or h:mm:ss.", isError = true) }
+                return
+            }
+        }
+        val extra = ExtraOptions(
+            embedCover = s.embedCover,
+            separateAv = s.separateAv,
+            trim = s.trim,
+            trimStart = from,
+            trimEnd = to,
+        )
+        DownloadService.start(app, url, s.format, s.quality, extra)
     }
 
     fun cancel() = DownloadService.cancelDownload()

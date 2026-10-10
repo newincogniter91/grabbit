@@ -30,22 +30,52 @@ enum class VideoQuality(val label: String, val height: Int?) {
     P360("360p", 360),
 }
 
+data class ExtraOptions(
+    val embedCover: Boolean = false,
+    val separateAv: Boolean = false,
+    val trim: Boolean = false,
+    val trimStart: String = "",
+    val trimEnd: String = "",
+)
+
 object Downloader {
 
-    fun buildRequest(url: String, format: OutFormat, quality: VideoQuality, dir: File): YoutubeDLRequest {
+    /** Parses "90", "1:30" or "1:02:03" (optionally with decimals) into seconds, or null if invalid. */
+    fun parseTime(s: String): Double? {
+        if (!Regex("""\d+(:\d{1,2}){0,2}(\.\d+)?""").matches(s)) return null
+        return s.split(':').fold(0.0) { acc, part -> acc * 60 + part.toDouble() }
+    }
+
+    fun buildRequest(
+        url: String,
+        format: OutFormat,
+        quality: VideoQuality,
+        dir: File,
+        extra: ExtraOptions = ExtraOptions(),
+    ): YoutubeDLRequest {
         val request = YoutubeDLRequest(url)
         request.addOption("--no-playlist")
         request.addOption("--no-mtime")
-        request.addOption("-o", "${dir.absolutePath}/%(title).120s.%(ext)s")
+        val separate = extra.separateAv && format.isVideo
+        val name = if (separate) "%(title).110s [%(format_id)s]" else "%(title).120s"
+        request.addOption("-o", "${dir.absolutePath}/$name.%(ext)s")
         val h = quality.height?.let { "[height<=?$it]" }.orEmpty()
         when (format) {
             OutFormat.MP4 -> {
-                request.addOption("-f", "bv*$h[ext=mp4]+ba[ext=m4a]/b$h[ext=mp4]/bv*$h+ba/b$h/b")
-                request.addOption("--merge-output-format", "mp4")
+                if (separate) {
+                    request.addOption("-f", "bv*$h[ext=mp4]/bv*$h,ba[ext=m4a]/ba")
+                } else {
+                    request.addOption("-f", "bv*$h[ext=mp4]+ba[ext=m4a]/b$h[ext=mp4]/bv*$h+ba/b$h/b")
+                    request.addOption("--merge-output-format", "mp4")
+                }
             }
             OutFormat.WEBM -> {
-                request.addOption("-f", "bv*$h[ext=webm]+ba[ext=webm]/bv*$h+ba/b$h/b")
-                request.addOption("--merge-output-format", "webm")
+                if (separate) {
+                    request.addOption("-f", "bv*$h[ext=webm]/bv*$h,ba[ext=webm]/ba")
+                } else {
+                    request.addOption("-f", "bv*$h[ext=webm]+ba[ext=webm]/bv*$h+ba/b$h/b")
+                    request.addOption("--merge-output-format", "webm")
+                }
             }
             OutFormat.M4A -> {
                 request.addOption("-f", "ba[ext=m4a]/ba/b")
@@ -63,6 +93,15 @@ object Downloader {
                 request.addOption("-x")
                 request.addOption("--audio-format", "opus")
             }
+        }
+        if (extra.embedCover && format != OutFormat.WEBM) {
+            request.addOption("--embed-thumbnail")
+            request.addOption("--convert-thumbnails", "jpg")
+        }
+        if (extra.trim) {
+            val from = extra.trimStart.ifBlank { "0" }
+            val to = extra.trimEnd.ifBlank { "inf" }
+            request.addOption("--download-sections", "*$from-$to")
         }
         return request
     }
