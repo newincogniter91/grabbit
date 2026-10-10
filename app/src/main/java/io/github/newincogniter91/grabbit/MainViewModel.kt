@@ -29,6 +29,7 @@ data class UiState(
     val updateMessage: String = "",
     val disclaimerAccepted: Boolean = false,
     val darkTheme: Boolean = true,
+    val amoled: Boolean = false,
     val saveFolderLabel: String = DEFAULT_FOLDER_LABEL,
     val customFolder: Boolean = false,
 )
@@ -40,6 +41,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         UiState(
             disclaimerAccepted = prefs.getBoolean(KEY_DISCLAIMER, false),
             darkTheme = prefs.getBoolean(KEY_DARK, true),
+            amoled = prefs.getBoolean(KEY_AMOLED, false),
             saveFolderLabel = Downloader.folderLabel(prefs.getString(KEY_FOLDER, null)),
             customFolder = prefs.getString(KEY_FOLDER, null) != null,
         )
@@ -78,8 +80,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun setDarkTheme(dark: Boolean) {
-        prefs.edit().putBoolean(KEY_DARK, dark).apply()
-        _state.update { it.copy(darkTheme = dark) }
+        prefs.edit().putBoolean(KEY_DARK, dark).putBoolean(KEY_AMOLED, false).apply()
+        _state.update { it.copy(darkTheme = dark, amoled = false) }
+    }
+
+    fun setAmoledTheme() {
+        prefs.edit().putBoolean(KEY_DARK, true).putBoolean(KEY_AMOLED, true).apply()
+        _state.update { it.copy(darkTheme = true, amoled = true) }
     }
 
     fun setSaveFolder(uri: Uri) {
@@ -132,5 +139,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private companion object {
         const val KEY_DISCLAIMER = "disclaimer_accepted"
         const val KEY_DARK = "dark_theme"
+        const val KEY_AMOLED = "amoled_theme"
     }
 }

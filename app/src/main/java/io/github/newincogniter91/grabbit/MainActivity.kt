@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = bar, navigationBarStyle = bar)
                 onDispose {}
             }
-            GrabbitTheme(darkTheme = dark) {
+            GrabbitTheme(darkTheme = dark, amoled = state.amoled) {
                 GrabbitRoot(vm = vm, onExit = { finish() })
             }
         }

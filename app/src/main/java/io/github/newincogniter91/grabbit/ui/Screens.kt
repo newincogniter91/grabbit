@@ -304,7 +304,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
-                selected = state.darkTheme,
+                selected = state.darkTheme && !state.amoled,
                 onClick = { vm.setDarkTheme(true) },
                 label = { Text("Night") },
             )
@@ -312,6 +312,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                 selected = !state.darkTheme,
                 onClick = { vm.setDarkTheme(false) },
                 label = { Text("Day") },
+            )
+            FilterChip(
+                selected = state.amoled,
+                onClick = { vm.setAmoledTheme() },
+                label = { Text("AMOLED") },
             )
         }
 

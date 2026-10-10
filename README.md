@@ -10,7 +10,7 @@ It uses [youtubedl-android](https://github.com/yausername/youtubedl-android), wh
 - Choose the output format at download time
 - Works as a share target: share a link to Grabbit from any app
 - Built-in yt-dlp updater (Settings → Update yt-dlp), so it keeps working when sites change
-- Night / Day theme, switchable in Settings
+- Night / Day / AMOLED (pure black) theme, switchable in Settings
 - Choose where files are saved (Settings → Save location); default is `Downloads/Grabbit`
 - Video quality picker (Best, 1080p, 720p, 480p, 360p) for MP4 and WEBM
 - Downloads run in a foreground service, so they continue in the background, with a progress notification and a Cancel button

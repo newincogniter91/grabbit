@@ -58,7 +58,7 @@ jobs:
       - name: Rename APKs
         run: |
           for abi in arm64-v8a armeabi-v7a; do
-            cp "app/build/outputs/apk/release/app-${abi}-release.apk" "grabbit-1.2.${{ github.run_number }}-${abi}.apk"
+            cp "app/build/outputs/apk/release/app-${abi}-release.apk" "grabbit-1.3.${{ github.run_number }}-${abi}.apk"
           done
 
       - uses: actions/upload-artifact@v4
@@ -79,9 +79,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.2.${{ github.run_number }}" grabbit-*.apk \
+          gh release create "v1.3.${{ github.run_number }}" grabbit-*.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "Grabbit 1.2.${{ github.run_number }}" \
+            --title "Grabbit 1.3.${{ github.run_number }}" \
             --notes "Install the arm64-v8a APK on almost all modern phones. The armeabi-v7a APK is only for old 32-bit devices." \
             --generate-notes
