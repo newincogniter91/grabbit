@@ -44,6 +44,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences(PREFS_NAME, Application.MODE_PRIVATE)
     private val _state = MutableStateFlow(
         UiState(
+            format = runCatching { OutFormat.valueOf(prefs.getString(KEY_FORMAT, null).orEmpty()) }
+                .getOrDefault(OutFormat.MP4),
+            embedCover = prefs.getBoolean(KEY_EMBED_COVER, false),
             disclaimerAccepted = prefs.getBoolean(KEY_DISCLAIMER, false),
             darkTheme = prefs.getBoolean(KEY_DARK, true),
             amoled = prefs.getBoolean(KEY_AMOLED, false),
@@ -75,11 +78,17 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun setUrl(value: String) = _state.update { it.copy(url = value) }
 
-    fun setFormat(value: OutFormat) = _state.update { it.copy(format = value) }
+    fun setFormat(value: OutFormat) {
+        prefs.edit().putString(KEY_FORMAT, value.name).apply()
+        _state.update { it.copy(format = value) }
+    }
 
     fun setQuality(value: VideoQuality) = _state.update { it.copy(quality = value) }
 
-    fun setEmbedCover(value: Boolean) = _state.update { it.copy(embedCover = value) }
+    fun setEmbedCover(value: Boolean) {
+        prefs.edit().putBoolean(KEY_EMBED_COVER, value).apply()
+        _state.update { it.copy(embedCover = value) }
+    }
 
     fun setSeparateAv(value: Boolean) = _state.update { it.copy(separateAv = value) }
 
@@ -176,5 +185,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         const val KEY_DISCLAIMER = "disclaimer_accepted"
         const val KEY_DARK = "dark_theme"
         const val KEY_AMOLED = "amoled_theme"
+        const val KEY_FORMAT = "last_format"
+        const val KEY_EMBED_COVER = "last_embed_cover"
     }
 }

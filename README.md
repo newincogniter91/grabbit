@@ -13,6 +13,10 @@ It uses [youtubedl-android](https://github.com/yausername/youtubedl-android), wh
 - Night / Day / AMOLED (pure black) theme, switchable in Settings
 - Choose where files are saved (Settings → Save location); default is `Downloads/Grabbit`
 - Video quality picker (Best, 1080p, 720p, 480p, 360p) for MP4 and WEBM
+- Optional embedded cover art (MP4, M4A, MP3, OPUS)
+- Optional "Save video and audio separately" for MP4 and WEBM downloads
+- Optional "Download only a section": give a start and end time (`m:ss` or `h:mm:ss`) and only that part is downloaded
+- Remembers your last chosen format and cover art setting
 - Downloads run in a foreground service, so they continue in the background, with a progress notification and a Cancel button
 - Separate APKs per architecture: `arm64-v8a` (almost all modern phones) and `armeabi-v7a` (old 32-bit devices)
 - Requires Android 10 (API 29) or newer
