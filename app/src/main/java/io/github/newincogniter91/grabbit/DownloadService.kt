@@ -126,6 +126,25 @@ class DownloadService : Service() {
                 f.isFile && SKIP_SUFFIXES.none { f.name.endsWith(it) }
             }
             if (files.isEmpty()) error("No file was produced.")
+            var recognitionNote = ""
+            val recognize = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_RECOGNIZE, true)
+            if (recognize && !format.isVideo) {
+                _status.update { it.copy(status = "Recognizing song…") }
+                notifyProgress("Recognizing song…", 100)
+                val work = File(cacheDir, "rec").apply {
+                    deleteRecursively()
+                    mkdirs()
+                }
+                try {
+                    recognitionNote = files.firstOrNull()
+                        ?.let { Recognizer.recognizeAndTag(this, it, work) { cancelled }.note }
+                        .orEmpty()
+                } finally {
+                    work.deleteRecursively()
+                }
+                if (cancelled) error("Cancelled.")
+            }
             val usedFallback = files.map { Downloader.saveFile(this, it) }.any { it }
             val where = if (usedFallback) {
                 DEFAULT_FOLDER_LABEL
@@ -135,7 +154,8 @@ class DownloadService : Service() {
                 )
             }
             val note = if (usedFallback) "Chosen folder unavailable. " else ""
-            val message = "${note}Saved to $where: ${files.first().name}"
+            val message = "${note}Saved to $where: ${files.first().name}" +
+                if (recognitionNote.isNotEmpty()) " · $recognitionNote" else ""
             _status.value = DownloadStatus(busy = false, progress = 1f, status = message)
             notifyDone(message, error = false)
         } catch (e: Throwable) {

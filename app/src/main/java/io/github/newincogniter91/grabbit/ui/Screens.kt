@@ -377,6 +377,19 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         }
 
         Spacer(Modifier.height(32.dp))
+        Text("Song recognition", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        OptionSwitch("Identify the real song title", state.recognizeSongs, vm::setRecognizeSongs, true)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Audio downloads are checked at several points of the song with Shazam (no account or key " +
+                "needed; only a short fingerprint is sent, never the audio). If more than half of the " +
+                "searches agree, title, artist, album and year are written to the file. Otherwise the " +
+                "downloaded metadata is kept.",
+            color = Muted,
+        )
+
+        Spacer(Modifier.height(32.dp))
         Text("Download engine", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text("yt-dlp version: ${state.engineVersion.ifBlank { "unknown" }}", color = Muted)

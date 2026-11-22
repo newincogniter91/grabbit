@@ -37,6 +37,7 @@ data class UiState(
     val amoled: Boolean = false,
     val saveFolderLabel: String = DEFAULT_FOLDER_LABEL,
     val customFolder: Boolean = false,
+    val recognizeSongs: Boolean = true,
 )
 
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
@@ -47,6 +48,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             format = runCatching { OutFormat.valueOf(prefs.getString(KEY_FORMAT, null).orEmpty()) }
                 .getOrDefault(OutFormat.MP4),
             embedCover = prefs.getBoolean(KEY_EMBED_COVER, false),
+            recognizeSongs = prefs.getBoolean(KEY_RECOGNIZE, true),
             disclaimerAccepted = prefs.getBoolean(KEY_DISCLAIMER, false),
             darkTheme = prefs.getBoolean(KEY_DARK, true),
             amoled = prefs.getBoolean(KEY_AMOLED, false),
@@ -88,6 +90,11 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun setEmbedCover(value: Boolean) {
         prefs.edit().putBoolean(KEY_EMBED_COVER, value).apply()
         _state.update { it.copy(embedCover = value) }
+    }
+
+    fun setRecognizeSongs(value: Boolean) {
+        prefs.edit().putBoolean(KEY_RECOGNIZE, value).apply()
+        _state.update { it.copy(recognizeSongs = value) }
     }
 
     fun setSeparateAv(value: Boolean) = _state.update { it.copy(separateAv = value) }
